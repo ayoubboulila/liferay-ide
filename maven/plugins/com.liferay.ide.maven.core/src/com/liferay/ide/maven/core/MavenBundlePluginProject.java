@@ -31,7 +31,6 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 
@@ -91,7 +90,7 @@ public class MavenBundlePluginProject extends LiferayMavenProject implements IBu
     }
 
     @Override
-    public IPath getOutputJar( boolean buildIfNeeded, IProgressMonitor monitor ) throws CoreException
+    public IPath getOutputBundle( boolean buildIfNeeded, IProgressMonitor monitor ) throws CoreException
     {
         IPath outputJar = null;
 
@@ -101,26 +100,33 @@ public class MavenBundlePluginProject extends LiferayMavenProject implements IBu
 
             // TODO update status
             final List<String> goals = Arrays.asList( "package" );
-            final IStatus status = mavenProjectBuilder.execGoals( goals, monitor );
-            // we are going to try to get the output jar even if the package failed.
 
-            final IMavenProjectFacade projectFacade = MavenUtil.getProjectFacade( getProject(), monitor );
-            final MavenProject mavenProject = projectFacade.getMavenProject( monitor );
-
-            final String targetName = mavenProject.getBuild().getFinalName() + ".jar";
-
-            // TODO find a better way to get the target folder
-            final IFolder targetFolder = getProject().getFolder( "target" );
-
-            if( targetFolder.exists() )
+            try
             {
-                //targetFolder.refreshLocal( IResource.DEPTH_ONE, monitor );
-                final IPath targetFile = targetFolder.getRawLocation().append( targetName );
+                mavenProjectBuilder.execGoals( goals, monitor );
+            }
+            catch( CoreException e )
+            {
+                LiferayMavenCore.logError( "Error building package", e );
+            }
+        }
 
-                if( targetFile.toFile().exists() )
-                {
-                    outputJar = targetFile;
-                }
+        final IMavenProjectFacade projectFacade = MavenUtil.getProjectFacade( getProject(), monitor );
+        final MavenProject mavenProject = projectFacade.getMavenProject( monitor );
+
+        final String targetName = mavenProject.getBuild().getFinalName() + ".jar";
+
+        // TODO find a better way to get the target folder
+        final IFolder targetFolder = getProject().getFolder( "target" );
+
+        if( targetFolder.exists() )
+        {
+            // targetFolder.refreshLocal( IResource.DEPTH_ONE, monitor );
+            final IPath targetFile = targetFolder.getRawLocation().append( targetName );
+
+            if( targetFile.toFile().exists() )
+            {
+                outputJar = targetFile;
             }
         }
 

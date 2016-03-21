@@ -16,7 +16,7 @@
 
 package com.liferay.ide.project.core.model.internal;
 
-import static com.liferay.ide.project.core.model.NewLiferayPluginProjectOpMethods.supportsWebTypePlugin;
+import static com.liferay.ide.project.core.model.NewLiferayPluginProjectOpMethods.supportsExtOrWebTypePlugin;
 
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.project.core.IPortletFramework;
@@ -71,6 +71,14 @@ public class SDKLocationValidationService extends ValidationService
 
         if ( op().getProjectProvider().content().getShortName().equals( "ant" ))
         {
+
+            int countPossibleWorkspaceSDKProjects = SDKUtil.countPossibleWorkspaceSDKProjects();
+
+            if( countPossibleWorkspaceSDKProjects > 1 )
+            {
+                return StatusBridge.create( ProjectCore.createErrorStatus( "This workspace has more than one SDK. " ) );
+            }
+
             final Path sdkLocation = op().getSdkLocation().content( true );
 
             if( sdkLocation == null || sdkLocation.isEmpty() )
@@ -100,18 +108,29 @@ public class SDKLocationValidationService extends ValidationService
 
             IPath projectPath = PathBridge.create( projectLocation );
 
-            if ( projectPath != null && projectPath.toFile().exists() )
+            if( projectPath != null && projectPath.toFile().exists() )
             {
-                return StatusBridge.create( ProjectCore.createErrorStatus( "Project(" + projectName + ") is existed in sdk folder, please set new project name" ) );
+                return StatusBridge.create(
+                    ProjectCore.createErrorStatus(
+                        "Project(" + projectName + ") is existed in sdk folder, please set new project name" ) );
             }
 
             if( op().getPluginType().content().equals( PluginType.web ) )
             {
-                if ( ! supportsWebTypePlugin( op() ) )
+                if( !supportsExtOrWebTypePlugin( op(), "web" ) )
                 {
-                    retval =
-                        Status.createErrorStatus( "The selected Plugins SDK does not support creating new web type plugins.  "
-                            + "Please configure version 7.0.0 or greater." );
+                    retval = Status.createErrorStatus(
+                        "The selected Plugins SDK does not support creating new web type plugins.  " +
+                            "Please configure version 7.0 or greater." );
+                }
+            }
+            else if( op().getPluginType().content().equals( PluginType.ext ) )
+            {
+                if( !supportsExtOrWebTypePlugin( op(), "ext" ) )
+                {
+                    retval = Status.createErrorStatus(
+                        "The selected Plugins SDK does not support creating ext type plugins.  " +
+                            "Please configure version 6.2 or less." );
                 }
             }
             else if (op().getPluginType().content().equals( PluginType.portlet ))

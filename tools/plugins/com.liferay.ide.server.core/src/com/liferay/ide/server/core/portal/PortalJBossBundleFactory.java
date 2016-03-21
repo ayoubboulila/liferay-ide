@@ -15,15 +15,21 @@
 
 package com.liferay.ide.server.core.portal;
 
+import com.liferay.ide.server.util.JavaUtil;
+
 import java.util.Map;
 
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.Path;
 
 /**
  * @author Simon Jiang
  */
 public class PortalJBossBundleFactory extends AbstractPortalBundleFactory
 {
+
+    private static final String JBAS7_RELEASE_VERSION = "JBossAS-Release-Version";
+
     @Override
     public PortalBundle create( Map<String, String> appServerProperties )
     {
@@ -47,7 +53,9 @@ public class PortalJBossBundleFactory extends AbstractPortalBundleFactory
         if( path.append( "bundles" ).toFile().exists() && path.append( "modules" ).toFile().exists() &&
             path.append( "standalone" ).toFile().exists() && path.append( "bin" ).toFile().exists() )
         {
-            return true;
+            final String mainFolder = new Path( "modules/org/jboss/as/server/main" ).toOSString();
+
+            return JavaUtil.scanFolderJarsForManifestProp( path.toFile(), mainFolder, JBAS7_RELEASE_VERSION, "7." );
         }
 
         return false;

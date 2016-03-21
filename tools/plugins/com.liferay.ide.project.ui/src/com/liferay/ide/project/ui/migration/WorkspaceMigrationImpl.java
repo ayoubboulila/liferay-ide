@@ -15,11 +15,12 @@
 
 package com.liferay.ide.project.ui.migration;
 
-import blade.migrate.api.MigrationConstants;
-import blade.migrate.api.MigrationListener;
-import blade.migrate.api.Problem;
+import com.liferay.blade.api.MigrationConstants;
+import com.liferay.blade.api.MigrationListener;
+import com.liferay.blade.api.Problem;
 
 import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.ui.util.UIUtil;
 
 import java.io.File;
 import java.util.List;
@@ -123,9 +124,7 @@ public class WorkspaceMigrationImpl implements MigrationListener
                         final IMarker marker =
                             workspaceResource.createMarker( MigrationConstants.MARKER_TYPE );
 
-                        final TaskProblem taskProblem = new TaskProblem( problem, false, marker.getId() );
-
-                        MigrationUtil.taskProblemToMarker( taskProblem, marker );
+                        MigrationUtil.problemToMarker( problem, marker );
                     }
                 }
                 catch( CoreException e )
@@ -133,6 +132,14 @@ public class WorkspaceMigrationImpl implements MigrationListener
                 }
             }
         }
+
+        UIUtil.async( new Runnable()
+        {
+            public void run()
+            {
+                UIUtil.showView( MigrationView.ID );
+            }
+        });
     }
 
     private boolean shouldAddMarker( IResource resource )

@@ -12,6 +12,7 @@
  * details.
  *
  *******************************************************************************/
+
 package com.liferay.ide.project.core.model;
 
 import com.liferay.ide.core.ILiferayConstants;
@@ -19,6 +20,7 @@ import com.liferay.ide.core.IWebProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
+import com.liferay.ide.project.core.IPortletFramework;
 import com.liferay.ide.project.core.NewLiferayProjectProvider;
 import com.liferay.ide.project.core.ProjectCore;
 import com.liferay.ide.project.core.descriptor.RemoveSampleElementsOperation;
@@ -49,7 +51,6 @@ import org.eclipse.sapphire.platform.ProgressMonitorBridge;
 import org.eclipse.sapphire.platform.StatusBridge;
 import org.osgi.framework.Version;
 
-
 /**
  * @author Gregory Amerson
  * @author Simon Jiang
@@ -76,21 +77,22 @@ public class NewLiferayPluginProjectOpMethods
     {
         final IProgressMonitor monitor = ProgressMonitorBridge.create( pm );
 
-        monitor.beginTask( "Creating Liferay plugin project (this process may take several minutes)", 100 ); //$NON-NLS-1$
+        monitor.beginTask( "Creating Liferay plugin project (this process may take several minutes)", 100 );
 
         Status retval = null;
 
         try
         {
-            final NewLiferayProjectProvider projectProvider = op.getProjectProvider().content( true );
+            final NewLiferayProjectProvider<NewLiferayPluginProjectOp> projectProvider =
+                op.getProjectProvider().content( true );
 
-            //IDE-1306  If the user types too quickly all the model changes may not have propagated
+            // IDE-1306 If the user types too quickly all the model changes may not have propagated
             final Path projectLocation = op.getLocation().content();
             updateLocation( op, projectLocation );
 
             final IStatus status = projectProvider.createNewProject( op, monitor );
 
-            if ( status.isOK() )
+            if( status.isOK() )
             {
                 updateProjectPrefs( op );
 
@@ -110,6 +112,20 @@ public class NewLiferayPluginProjectOpMethods
         return retval;
     }
 
+    public static String getFrameworkName( NewLiferayPluginProjectOp op )
+    {
+        final IPortletFramework portletFramework = op.getPortletFramework().content();
+
+        String frameworkName = portletFramework.getShortName();
+
+        if( portletFramework.isRequiresAdvanced() )
+        {
+            frameworkName = op.getPortletFrameworkAdvanced().content().getShortName();
+        }
+
+        return frameworkName;
+    }
+
     public static String getMavenParentPomGroupId( NewLiferayPluginProjectOp op, String projectName, IPath path )
     {
         String retval = null;
@@ -122,7 +138,7 @@ public class NewLiferayPluginProjectOpMethods
             List<String> groupId =
                 op.getProjectProvider().content().getData( "parentGroupId", String.class, parentProjectDir );
 
-            if( ! groupId.isEmpty() )
+            if( !groupId.isEmpty() )
             {
                 retval = groupId.get( 0 );
             }
@@ -152,6 +168,100 @@ public class NewLiferayPluginProjectOpMethods
         return retval;
     }
 
+    public static String getPluginTypeSuffix( final PluginType pluginType )
+    {
+        String suffix = null;
+
+        switch( pluginType )
+        {
+        case portlet:
+        case servicebuilder:
+            suffix = "-portlet"; //$NON-NLS-1$
+            break;
+        case ext:
+            suffix = "-ext"; //$NON-NLS-1$
+            break;
+        case hook:
+            suffix = "-hook"; //$NON-NLS-1$
+            break;
+        case layouttpl:
+            suffix = "-layouttpl"; //$NON-NLS-1$
+            break;
+        case theme:
+            suffix = "-theme"; //$NON-NLS-1$
+            break;
+        case web:
+            suffix = "-web"; //$NON-NLS-1$
+            break;
+        }
+
+        return suffix;
+    }
+
+    public static Set<String> getPossibleProfileIds( NewLiferayPluginProjectOp op, boolean includeNewProfiles )
+    {
+        final String activeProfilesValue = op.getActiveProfilesValue().content();
+
+        final Path currentLocation = op.getLocation().content();
+
+        final File param = currentLocation != null ? currentLocation.toFile() : null;
+
+        final List<String> systemProfileIds =
+            op.getProjectProvider().content().getData( "profileIds", String.class, param );
+
+        final ElementList<NewLiferayProfile> newLiferayProfiles = op.getNewLiferayProfiles();
+
+        final Set<String> possibleProfileIds = new HashSet<String>();
+
+        if( !CoreUtil.isNullOrEmpty( activeProfilesValue ) )
+        {
+            final String[] vals = activeProfilesValue.split( "," );
+
+            if( !CoreUtil.isNullOrEmpty( vals ) )
+            {
+                for( String val : vals )
+                {
+                    if( !possibleProfileIds.contains( val ) && !val.contains( StringPool.SPACE ) )
+                    {
+                        possibleProfileIds.add( val );
+                    }
+                }
+            }
+        }
+
+        if( !CoreUtil.isNullOrEmpty( systemProfileIds ) )
+        {
+            for( Object systemProfileId : systemProfileIds )
+            {
+                if( systemProfileId != null )
+                {
+                    final String val = systemProfileId.toString();
+
+                    if( !possibleProfileIds.contains( val ) && !val.contains( StringPool.SPACE ) )
+                    {
+                        possibleProfileIds.add( val );
+                    }
+                }
+            }
+        }
+
+        if( includeNewProfiles )
+        {
+            for( NewLiferayProfile newLiferayProfile : newLiferayProfiles )
+            {
+                final String newId = newLiferayProfile.getId().content();
+
+                if( ( !CoreUtil.isNullOrEmpty( newId ) ) && ( !possibleProfileIds.contains( newId ) ) &&
+                    ( !newId.contains( StringPool.SPACE ) ) )
+                {
+                    possibleProfileIds.add( newId );
+                }
+            }
+        }
+
+        return possibleProfileIds;
+    }
+
     public static String getProjectNameWithSuffix( final NewLiferayPluginProjectOp op )
     {
         final String projectName = op.getProjectName().content();
@@ -176,101 +286,7 @@ public class NewLiferayPluginProjectOpMethods
         }
 
         return ( projectName == null ? StringPool.EMPTY : projectName ) +
-                        ( suffix == null ? StringPool.EMPTY : suffix );
-    }
-
-    public static String getPluginTypeSuffix( final PluginType pluginType )
-    {
-        String suffix = null;
-
-        switch ( pluginType )
-        {
-            case portlet:
-            case servicebuilder:
-                suffix = "-portlet"; //$NON-NLS-1$
-                break;
-            case ext:
-                suffix = "-ext"; //$NON-NLS-1$
-                break;
-            case hook:
-                suffix = "-hook"; //$NON-NLS-1$
-                break;
-            case layouttpl:
-                suffix = "-layouttpl"; //$NON-NLS-1$
-                break;
-            case theme:
-                suffix = "-theme"; //$NON-NLS-1$
-                break;
-            case web:
-                suffix = "-web"; //$NON-NLS-1$
-                break;
-        }
-
-        return suffix;
-    }
-
-    public static Set<String> getPossibleProfileIds( NewLiferayPluginProjectOp op, boolean includeNewProfiles )
-    {
-        final String activeProfilesValue = op.getActiveProfilesValue().content();
-
-        final Path currentLocation = op.getLocation().content();
-
-        final File param = currentLocation != null ? currentLocation.toFile() : null;
-
-        final List<String> systemProfileIds =
-            op.getProjectProvider().content().getData( "profileIds", String.class, param );
-
-        final ElementList<NewLiferayProfile> newLiferayProfiles = op.getNewLiferayProfiles();
-
-        final Set<String> possibleProfileIds = new HashSet<String>();
-
-        if( ! CoreUtil.isNullOrEmpty( activeProfilesValue ) )
-        {
-            final String[] vals = activeProfilesValue.split( "," );
-
-            if( ! CoreUtil.isNullOrEmpty( vals ) )
-            {
-                for( String val : vals )
-                {
-                    if( !possibleProfileIds.contains( val ) && !val.contains( StringPool.SPACE ) )
-                    {
-                        possibleProfileIds.add( val );
-                    }
-                }
-            }
-        }
-
-        if( ! CoreUtil.isNullOrEmpty( systemProfileIds ) )
-        {
-            for( Object systemProfileId : systemProfileIds )
-            {
-                if( systemProfileId != null )
-                {
-                    final String val = systemProfileId.toString();
-
-                    if( !possibleProfileIds.contains( val ) && !val.contains( StringPool.SPACE ) )
-                    {
-                       possibleProfileIds.add( val );
-                    }
-                }
-            }
-        }
-
-        if( includeNewProfiles )
-        {
-            for( NewLiferayProfile newLiferayProfile : newLiferayProfiles )
-            {
-                final String newId = newLiferayProfile.getId().content();
-
-                if( ( !CoreUtil.isNullOrEmpty( newId ) ) && ( !possibleProfileIds.contains( newId ) ) &&
-                    ( !newId.contains( StringPool.SPACE ) ) )
-                {
-                    possibleProfileIds.add( newId );
-                }
-            }
-        }
-
-        return possibleProfileIds;
+            ( suffix == null ? StringPool.EMPTY : suffix );
     }
 
     private static IStatus removeSampleCodeAndFiles( NewLiferayPluginProjectOp op )
@@ -279,7 +295,7 @@ public class NewLiferayPluginProjectOpMethods
 
         final boolean includeSampleCode = op.getIncludeSampleCode().content();
 
-        if( ! includeSampleCode )
+        if( !includeSampleCode )
         {
             final IProject project = CoreUtil.getLiferayProject( op.getFinalProjectName().content() );
 
@@ -296,12 +312,8 @@ public class NewLiferayPluginProjectOpMethods
                     {
                         final IFolder docroot = webproject.getDefaultDocrootFolder();
 
-                        final IFile[] sampleFiles =
-                        {
-                            docroot.getFile( "view.jsp" ),
-                            docroot.getFile( "css/main.css" ),
-                            docroot.getFile( "js/main.js" )
-                        };
+                        final IFile[] sampleFiles = { docroot.getFile( "view.jsp" ), docroot.getFile( "css/main.css" ),
+                            docroot.getFile( "js/main.js" ) };
 
                         for( IFile file : sampleFiles )
                         {
@@ -321,19 +333,22 @@ public class NewLiferayPluginProjectOpMethods
                 {
                     ProjectCore.logError( "Error deleting sample files.", e );
                 }
-           }
+            }
         }
 
         return status;
     }
 
-    public static boolean supportsWebTypePlugin( NewLiferayPluginProjectOp op )
+    public static boolean supportsExtOrWebTypePlugin( NewLiferayPluginProjectOp op, String type )
     {
         boolean retval = false;
 
         if( op.getProjectProvider().content( true ).getShortName().equals( "maven" ) )
         {
-            retval = true;
+            if( type.equals( "web" ) )
+            {
+                retval = true;
+            }
         }
         else
         {
@@ -347,11 +362,11 @@ public class NewLiferayPluginProjectOpMethods
             {
             }
 
-            if ( sdk == null )
+            if( sdk == null )
             {
                 final Path sdkLocation = op.getSdkLocation().content();
 
-                if ( sdkLocation != null )
+                if( sdkLocation != null )
                 {
                     sdk = SDKUtil.createSDKFromLocation( PathBridge.create( sdkLocation ) );
                 }
@@ -363,7 +378,11 @@ public class NewLiferayPluginProjectOpMethods
 
                 final boolean greaterThan700 = CoreUtil.compareVersions( version, ILiferayConstants.V700 ) >= 0;
 
-                if( greaterThan700 )
+                if( greaterThan700 && "web".equals( type ) )
+                {
+                    retval = true;
+                }
+                else if( ( !greaterThan700 ) && "ext".equals( type ) )
                 {
                     retval = true;
                 }
@@ -377,7 +396,8 @@ public class NewLiferayPluginProjectOpMethods
         return retval;
     }
 
-    public static void updateActiveProfilesValue( final NewLiferayPluginProjectOp op, final ElementList<Profile> profiles )
+    public static void updateActiveProfilesValue(
+        final NewLiferayPluginProjectOp op, final ElementList<Profile> profiles )
     {
         final StringBuilder sb = new StringBuilder();
 
@@ -385,7 +405,7 @@ public class NewLiferayPluginProjectOpMethods
         {
             for( Profile profile : profiles )
             {
-                if( ! profile.getId().empty() )
+                if( !profile.getId().empty() )
                 {
                     sb.append( profile.getId().content() );
                     sb.append( ',' );
@@ -397,19 +417,141 @@ public class NewLiferayPluginProjectOpMethods
         op.setActiveProfilesValue( sb.toString().replaceAll( "(.*),$", "$1" ) );
     }
 
+    public static void updateLocation( final NewLiferayPluginProjectOp op )
+    {
+        final String currentProjectName = op.getProjectName().content();
+
+        if( currentProjectName == null )
+        {
+            return;
+        }
+
+        final boolean useDefaultLocation = op.getUseDefaultLocation().content( true );
+        final String providerShortName = op.getProjectProvider().content( true ).getShortName();
+
+        if( useDefaultLocation )
+        {
+            Path newLocationBase = null;
+
+            if( providerShortName.equals( "ant" ) )
+            {
+                SDK sdk = null;
+
+                try
+                {
+                    sdk = SDKUtil.getWorkspaceSDK();
+
+                    if( sdk != null )
+                    {
+                        IStatus sdkStatus = sdk.validate();
+
+                        if( !sdkStatus.isOK() )
+                        {
+                            sdk = null;
+                        }
+                    }
+                }
+                catch( CoreException e )
+                {
+
+                }
+
+                if( sdk == null )
+                {
+                    if( op.getSdkLocation() != null )
+                    {
+                        final Path sdkPath = op.getSdkLocation().content();
+
+                        if( sdkPath != null )
+                        {
+                            final IPath sdkLocation = PathBridge.create( sdkPath );
+
+                            sdk = SDKUtil.createSDKFromLocation( sdkLocation );
+                        }
+                    }
+                }
+
+                if( sdk != null )
+                {
+                    final Path sdkLocation = PathBridge.create( sdk.getLocation() );
+
+                    switch ( op.getPluginType().content( true ) )
+                    {
+                        case portlet:
+                        case servicebuilder:
+                            newLocationBase = sdkLocation.append( "portlets" ); //$NON-NLS-1$
+                            break;
+                        case ext:
+                            newLocationBase = sdkLocation.append( "ext" ); //$NON-NLS-1$
+                            break;
+                        case hook:
+                            newLocationBase = sdkLocation.append( "hooks" ); //$NON-NLS-1$
+                            break;
+                        case layouttpl:
+                            newLocationBase = sdkLocation.append( "layouttpl" ); //$NON-NLS-1$
+                            break;
+                        case theme:
+                            newLocationBase = sdkLocation.append( "themes" ); //$NON-NLS-1$
+                            break;
+                        case web:
+                            newLocationBase = sdkLocation.append( "webs" ); //$NON-NLS-1$
+                            break;
+                    }
+                }
+                else
+                {
+                    return;
+                }
+            }
+            else
+            {
+                newLocationBase = PathBridge.create( CoreUtil.getWorkspaceRoot().getLocation() );
+            }
+
+            if( newLocationBase != null )
+            {
+                NewLiferayPluginProjectOpMethods.updateLocation( op, newLocationBase );
+            }
+        }
+    }
+
+    public static void updateLocation( final NewLiferayPluginProjectOp op, final Path baseLocation )
+    {
+        final String projectName = getProjectNameWithSuffix( op );
+
+        if( baseLocation == null )
+        {
+            return;
+        }
+
+        final String lastSegment = baseLocation.lastSegment();
+
+        if( baseLocation != null && baseLocation.segmentCount() > 0 )
+        {
+            if( lastSegment.equals( projectName ) )
+            {
+                return;
+            }
+        }
+
+        final Path newLocation = baseLocation.append( projectName );
+
+        op.setLocation( newLocation );
+    }
+
     private static void updateProjectPrefs( final NewLiferayPluginProjectOp op )
     {
         try
         {
             final IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode( ProjectCore.PLUGIN_ID );
 
-            prefs.put( ProjectCore.PREF_DEFAULT_PROJECT_BUILD_TYPE_OPTION, op.getProjectProvider().text() );
+            prefs.put( ProjectCore.PREF_DEFAULT_PLUGIN_PROJECT_BUILD_TYPE_OPTION, op.getProjectProvider().text() );
             prefs.putBoolean( ProjectCore.PREF_INCLUDE_SAMPLE_CODE, op.getIncludeSampleCode().content() );
             prefs.putBoolean( ProjectCore.PREF_CREATE_NEW_PORLET, op.getCreateNewPortlet().content() );
 
             if( "maven".equalsIgnoreCase( op.getProjectProvider().text() ) )
             {
-                prefs.put( ProjectCore.PREF_DEFAULT_PROJECT_MAVEN_GROUPID, op.getGroupId().content() );
+                prefs.put( ProjectCore.PREF_DEFAULT_PLUGIN_PROJECT_MAVEN_GROUPID, op.getGroupId().content() );
             }
 
             prefs.flush();
@@ -419,29 +561,5 @@ public class NewLiferayPluginProjectOpMethods
             final String msg = "Error updating default project build type."; //$NON-NLS-1$
             ProjectCore.logError( msg, e );
         }
-    }
-
-    public static void updateLocation( final NewLiferayPluginProjectOp op, final Path baseLocation )
-    {
-        final String projectName = getProjectNameWithSuffix( op );
-
-        if ( baseLocation == null)
-        {
-            return ;
-        }
-
-        final String lastSegment = baseLocation.lastSegment();
-
-        if ( baseLocation!= null && baseLocation.segmentCount()>0)
-        {
-            if ( lastSegment.equals( projectName ))
-            {
-                return;
-            }
-        }
-
-        final Path newLocation = baseLocation.append( projectName );
-
-        op.setLocation( newLocation );
     }
 }

@@ -23,6 +23,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import org.eclipse.core.resources.IProject;
@@ -45,9 +47,26 @@ import org.osgi.service.prefs.BackingStoreException;
 /**
  * @author Greg Amerson
  * @author Lovett Li
+ * @author Simon Jiang
  */
 public class SDKUtil
 {
+
+    public static int countPossibleWorkspaceSDKProjects()
+    {
+        int sdkCount = 0;
+        final IProject[] projects = CoreUtil.getAllProjects();
+
+        for( IProject project : projects )
+        {
+            if( isValidSDKLocation( project.getLocation().toOSString() ) )
+            {
+                sdkCount++;
+            }
+        }
+
+        return sdkCount;
+    }
 
     public static SDK createSDKFromLocation( IPath path )
     {
@@ -253,7 +272,12 @@ public class SDKUtil
         return false;
     }
 
-    public static void openAsProject( SDK sdk )
+    public static void openAsProject( SDK sdk ) throws CoreException
+    {
+        openAsProject( sdk, new NullProgressMonitor() );
+    }
+
+    public static void openAsProject( SDK sdk, IProgressMonitor monitor ) throws CoreException
     {
         final IProject sdkProject = CoreUtil.getProject( sdk.getName() );
 
@@ -264,21 +288,19 @@ public class SDKUtil
             final IProjectDescription description = workspace.newProjectDescription( sdk.getLocation().lastSegment() );
             description.setLocationURI( sdk.getLocation().toFile().toURI() );
 
-            IProgressMonitor npm = new NullProgressMonitor();
+            sdkProject.create( description, monitor );
 
-            try
+            IPath settingFolderPath = sdkProject.getLocation().append( ".settings" );
+            File settingFolder = settingFolderPath.toFile();
+
+            if( !settingFolder.exists() )
             {
-                sdkProject.create( description, npm );
+                settingFolder.mkdir();
+            }
 
-                IPath settingFolderPath = sdkProject.getLocation().append( ".settings" );
-                File settingFolder = settingFolderPath.toFile();
-
-                if( !settingFolder.exists() )
-                {
-                    settingFolder.mkdir();
-                }
-
-                if( !settingFolderPath.append( "org.eclipse.wst.validation.prefs" ).toFile().exists() )
+            if( !settingFolderPath.append( "org.eclipse.wst.validation.prefs" ).toFile().exists() )
+            {
+                try
                 {
                     URL url =
                         FileLocator.toFileURL( SDKCorePlugin.getDefault().getBundle().getEntry(
@@ -288,13 +310,12 @@ public class SDKUtil
 
                     FileUtil.copyFileToDir( file, settingFolder );
                 }
+                catch( IOException e )
+                {
+                }
+            }
 
-                sdkProject.open( npm );
-            }
-            catch( Exception e )
-            {
-                SDKCorePlugin.logError( e );
-            }
+            sdkProject.open( monitor );
         }
     }
 
@@ -331,5 +352,21 @@ public class SDKUtil
         }
 
         return sdk;
+    }
+
+    public static IProject[] getWorkspaceSDKs()
+    {
+        List<IProject> sdkProjects = new ArrayList<IProject>();
+        final IProject[] projects = CoreUtil.getAllProjects();
+
+        for( IProject project : projects )
+        {
+            if( isValidSDKLocation( project.getLocation().toOSString() ) )
+            {
+                sdkProjects.add( project );
+            }
+        }
+
+        return sdkProjects.toArray( new IProject[sdkProjects.size()] );
     }
 }

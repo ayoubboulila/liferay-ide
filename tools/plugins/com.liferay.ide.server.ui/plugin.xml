@@ -197,11 +197,11 @@
                label="Create Portal Settings File">
          </action>
          <action
-               class="com.liferay.ide.server.ui.action.RefreshBundlesAction"
+               class="com.liferay.ide.server.ui.action.OpenGogoShellAction"
                enablesFor="1"
-               icon="icons/e16/refresh_bundles.png"
+               icon="icons/e16/osgi.png"
                id="com.liferay.ide.server.ui.action.refreshBundles"
-               label="Refresh bundles">
+               label="Open Gogo Shell">
          </action>
       </objectContribution>
       <objectContribution
@@ -427,15 +427,6 @@
             id="com.liferay.ide.server.ui.ImportGlobalSettingsPopup"
             label="Import Global Settings">
       </sink>
-         point="org.eclipse.ui.decorators">
-      <decorator
-            class="com.liferay.ide.server.ui.navigator.BundlesDecorator"
-            icon="icons/e16/bundlefolder.png"
-            id="com.liferay.ide.server.ui.osgibundlesDecorator"
-            label="OSGi Bundles Decorator"
-            lightweight="true"
-            state="true">
-      </decorator>
    </extension>
    <extension
          point="org.eclipse.wst.server.ui.serverImages">
@@ -537,26 +528,6 @@
             sequence="M1+M2+P">
        </key>
    </extension>
-   <extension
-         point="org.eclipse.ui.decorators">
-      <decorator
-            class="com.liferay.ide.server.ui.navigator.BundlesDecorator"
-            id="com.liferay.ide.server.ui.bundleDecorator"
-            label="Bundles Decorator"
-            lightweight="true"
-            state="true">
-          <enablement>
-            <or>
-               <objectClass
-                     name="com.liferay.ide.server.ui.navigator.BundlesFolder">
-               </objectClass>
-               <objectClass
-                     name="com.liferay.ide.server.core.portal.OsgiBundle">
-               </objectClass>
-            </or>
-         </enablement>
-      </decorator>
-   </extension>
 
    <extension
          point="org.eclipse.wst.server.core.moduleArtifactAdapters">
@@ -601,4 +572,15 @@
       </classpathContainerPage>
    </extension>
   -->
+   <extension point="org.eclipse.ui.decorators">
+     <decorator
+        adaptable="true"
+        class="com.liferay.ide.server.ui.LiferayServerModuleLabelDecorator"
+        id="com.liferay.ide.server.ui.decorator"
+        label="Module Label"
+        lightweight="false"
+        state="true">
+        <description>%moduleProjectDecoratorDescription</description>
+     </decorator>
+   </extension>
 </plugin>

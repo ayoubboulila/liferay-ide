@@ -38,13 +38,13 @@ public class PortalBundleTests extends ServerCoreBase
     @Override
     protected IPath getLiferayRuntimeDir()
     {
-        return ProjectCore.getDefault().getStateLocation().append( "liferay-portal-7.0-ce-m4/tomcat-7.0.42" );
+        return ProjectCore.getDefault().getStateLocation().append( "liferay-portal-7.0-ce-b8/tomcat-8.0.30" );
     }
 
     @Override
     protected IPath getLiferayRuntimeZip()
     {
-        return getLiferayBundlesPath().append( "liferay-portal-tomcat-7.0-ce-m4-20150224120313668.zip" );
+        return getLiferayBundlesPath().append( "liferay-portal-tomcat-7.0-ce-b8-20160223094645600.zip" );
     }
 
     @Override
@@ -94,14 +94,14 @@ public class PortalBundleTests extends ServerCoreBase
         assertNotNull( portalRuntime.getPortalBundle() );
 
         // set 7.x server with 6.2 location
-        IPath zip = getLiferayBundlesPath().append( "liferay-portal-tomcat-6.2-ce-ga4-20150416163831865.zip" );
-        IPath dir = ProjectCore.getDefault().getStateLocation().append( "liferay-portal-6.2-ce-ga4/tomcat-7.0.42" );
-
-        extractRuntime( zip, dir );
-
-        runtimeWC.setLocation( dir );
-
-        assertNull( portalRuntime.getPortalBundle() );
+//        IPath zip = getLiferayBundlesPath().append( "liferay-portal-tomcat-6.2-ce-ga4-20150416163831865.zip" );
+//        IPath dir = ProjectCore.getDefault().getStateLocation().append( "liferay-portal-6.2-ce-ga4/tomcat-7.0.42" );
+//
+//        extractRuntime( zip, dir );
+//
+//        runtimeWC.setLocation( dir );
+//
+//        assertNull( portalRuntime.getPortalBundle() );
     }
 
     @Test

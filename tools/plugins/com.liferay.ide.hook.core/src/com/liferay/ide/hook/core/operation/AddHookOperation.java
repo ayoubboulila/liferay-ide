@@ -60,6 +60,7 @@ import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
  * @author Greg Amerson
  * @author Simon Jiang
  * @author Terry Jia
+ * @author Andy Wu
  */
 @SuppressWarnings( { "restriction", "unchecked" } )
 public class AddHookOperation extends AbstractDataModelOperation implements INewHookDataModelProperties
@@ -155,22 +156,25 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
 
         CoreUtil.prepareFolder( (IFolder) newJspFile.getParent() );
 
-        if( originalPortalJspPath.toFile().exists() )
+        if ( !newJspFile.getLocation().toFile().exists() )
         {
-            final FileInputStream fis = new FileInputStream( originalPortalJspPath.toFile() );
-
-            if( newJspFile.exists() )
+            if( originalPortalJspPath.toFile().exists() )
             {
-                newJspFile.setContents( fis, IResource.FORCE, null );
+                final FileInputStream fis = new FileInputStream( originalPortalJspPath.toFile() );
+
+                if( newJspFile.exists() )
+                {
+                    newJspFile.setContents( fis, IResource.FORCE, null );
+                }
+                else
+                {
+                    newJspFile.create( fis, true, null );
+                }
             }
             else
             {
-                newJspFile.create( fis, true, null );
+                CoreUtil.createEmptyFile( newJspFile );
             }
-        }
-        else
-        {
-            CoreUtil.createEmptyFile( newJspFile );
         }
 
         return newJspFile;
@@ -281,16 +285,20 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
             {
                 try
                 {
-                    IFile createdFile = ProjectUtil.createEmptyProjectFile( languagePropertyFile[0], contentFolder );
-
-                    if( createdFile != null )
+                    if( !languagePropertyFile[0].contains( "*" ) )
                     {
-                        Set<IFile> languageFilesCreated =
-                            (Set<IFile>) dm.getProperty( LANGUAGE_PROPERTIES_FILES_CREATED );
+                        IFile createdFile =
+                            ProjectUtil.createEmptyProjectFile( languagePropertyFile[0], contentFolder );
 
-                        languageFilesCreated.add( createdFile );
+                        if( createdFile != null )
+                        {
+                            Set<IFile> languageFilesCreated =
+                                (Set<IFile>) dm.getProperty( LANGUAGE_PROPERTIES_FILES_CREATED );
 
-                        dm.setProperty( LANGUAGE_PROPERTIES_FILES_CREATED, languageFilesCreated );
+                            languageFilesCreated.add( createdFile );
+
+                            dm.setProperty( LANGUAGE_PROPERTIES_FILES_CREATED, languageFilesCreated );
+                        }
                     }
                 }
                 catch( Exception e )

@@ -20,12 +20,17 @@ import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
 import javax.xml.parsers.SAXParser;
@@ -873,4 +878,33 @@ public class PropertiesUtil
 
         return new IFile[0];
     }
+
+    public static Properties loadProperties( final File f )
+    {
+        final Properties p = new Properties();
+
+        try( FileInputStream stream = new FileInputStream( f ) )
+        {
+            p.load( stream );
+
+            return p;
+        }
+        catch( IOException ioe )
+        {
+            return null;
+        }
+    }
+
+    public static void saveProperties( Properties props, File bladeSettings )
+    {
+        try(FileOutputStream fos = new FileOutputStream( bladeSettings );)
+        {
+            props.store( fos, "" );
+        }
+        catch( Exception e )
+        {
+            LiferayCore.logError( "Could not save file " + bladeSettings.getName() );
+        }
+    }
+
 }

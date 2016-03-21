@@ -29,7 +29,7 @@ import org.eclipse.core.runtime.Path;
 /**
  * @author Simon Jiang
  */
-public class PortalJBossBundle extends AbstractPortalBundle  implements PortalBundle
+public class PortalJBossBundle extends AbstractPortalBundle implements PortalBundle
 {
     public static final int DEFAULT_JMX_PORT = 2099;
 
@@ -84,6 +84,12 @@ public class PortalJBossBundle extends AbstractPortalBundle  implements PortalBu
         }
 
         return retval;
+    }
+
+    @Override
+    public IPath getOSGiBundlesDir()
+    {
+        return null;
     }
 
     @Override
@@ -143,7 +149,7 @@ public class PortalJBossBundle extends AbstractPortalBundle  implements PortalBu
         args.add( "-Dcom.sun.management.jmxremote.port=" + getJmxRemotePort() );
         args.add( "-Dcom.sun.management.jmxremote.ssl=false" );
         args.add( "-Dorg.jboss.resolver.warning=true" );
-//        args.add( "-Djava.net.preferIPv4Stack=true" );
+        args.add( "-Djava.net.preferIPv4Stack=true" );
         args.add( "-Dsun.rmi.dgc.client.gcInterval=3600000" );
         args.add( "-Dsun.rmi.dgc.server.gcInterval=3600000" );
         args.add( "-Djboss.modules.system.pkgs=org.jboss.byteman" );
@@ -176,7 +182,7 @@ public class PortalJBossBundle extends AbstractPortalBundle  implements PortalBu
     @Override
     public String getType()
     {
-        return "jboss";
+        return "JBoss AS";
     }
 
     @Override

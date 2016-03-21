@@ -15,6 +15,7 @@
 
 package com.liferay.ide.core.util;
 
+import com.liferay.ide.core.IBundleProject;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.IWebProject;
 import com.liferay.ide.core.LiferayCore;
@@ -23,7 +24,6 @@ import com.liferay.ide.core.adapter.NoopLiferayProject;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -435,17 +435,21 @@ public class CoreUtil
         return ResourcesPlugin.getWorkspace().getRoot();
     }
 
-
-
     public static Object invoke( String methodName, Object object, Class<?>[] argTypes, Object[] args )
         throws SecurityException, NoSuchMethodException, IllegalArgumentException, IllegalAccessException,
         InvocationTargetException
     {
-
         Method method = object.getClass().getDeclaredMethod( methodName, argTypes );
         method.setAccessible( true );
 
         return method.invoke( object, args );
+    }
+
+    public static boolean isBundleOnlyProject( IProject project )
+    {
+        final ILiferayProject liferayProject = LiferayCore.create( project );
+
+       return liferayProject instanceof IBundleProject && !( liferayProject instanceof IWebProject );
     }
 
     public static boolean isEqual( Object object1, Object object2 )
@@ -473,6 +477,11 @@ public class CoreUtil
     public static boolean isMac()
     {
         return Platform.OS_MACOSX.equals( Platform.getOS() );
+    }
+
+    public static boolean isNotNullOrEmpty( Object[] array )
+    {
+        return !isNullOrEmpty( array );
     }
 
     public static boolean isNullOrEmpty( List<?> list )
@@ -550,12 +559,15 @@ public class CoreUtil
         }
     }
 
-    public static String readPropertyFileValue( File propertiesFile, String key ) throws FileNotFoundException,
-        IOException
+    public static String readPropertyFileValue( File propertiesFile, String key ) throws IOException
     {
-        Properties props = new Properties();
-        props.load( new FileInputStream( propertiesFile ) );
-        return props.getProperty( key );
+        try(FileInputStream fis = new FileInputStream( propertiesFile ))
+        {
+            Properties props = new Properties();
+            props.load( fis );
+
+            return props.getProperty( key );
+        }
     }
 
     public static String readStreamToString( InputStream contents ) throws IOException

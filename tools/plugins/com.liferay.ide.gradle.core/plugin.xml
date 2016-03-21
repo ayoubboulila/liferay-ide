@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="com.liferay.ide.core.liferayProjectProviders">
+      <liferayProjectProvider
+            class="com.liferay.ide.gradle.core.GradleProjectProvider"
+            displayName="Gradle Module Project Provider"
+            id="com.liferay.ide.gradle.core.gradleModuleProjectProvider"
+            shortName="gradle-module"
+            projectType="module">
+      </liferayProjectProvider>
+      <liferayProjectProvider
+            class="com.liferay.ide.gradle.core.LiferayWorkspaceProjectProvider"
+            displayName="Liferay Workspace Project Provider"
+            id="com.liferay.ide.gradle.core.liferayWorkspaceProjectProvider"
+            shortName="liferay-workspace"
+            projectType="workspace">
+      </liferayProjectProvider>
+   </extension>
+   <extension
+         point="com.liferay.ide.core.liferayProjectImporters">
+      <liferayProjectImporter
+            buildType="gradle"
+            class="com.liferay.ide.gradle.core.GradleModuleProjectImporter"
+            id="com.liferay.ide.gradle.core.GradleModuleProjectImporter">
+      </liferayProjectImporter>
+   </extension>
+</plugin>

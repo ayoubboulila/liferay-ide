@@ -35,6 +35,7 @@ import org.eclipse.core.runtime.Platform;
 /**
  * @author Gregory Amerson
  * @author Simon Jiang
+ * @author Terry Jia
  */
 public class PortalTomcatBundle extends AbstractPortalBundle implements PortalBundle
 {
@@ -116,6 +117,19 @@ public class PortalTomcatBundle extends AbstractPortalBundle implements PortalBu
     }
 
     @Override
+    public IPath getOSGiBundlesDir()
+    {
+        IPath retval = null;
+
+        if( this.liferayHome != null )
+        {
+            retval = this.liferayHome.append( "osgi" );
+        }
+
+        return retval;
+    }
+
+    @Override
     public IPath[] getRuntimeClasspath()
     {
         final List<IPath> paths = new ArrayList<IPath>();
@@ -179,7 +193,7 @@ public class PortalTomcatBundle extends AbstractPortalBundle implements PortalBu
         args.add( "-Dfile.encoding=UTF8" );
         args.add( "-Djava.endorsed.dirs=" + "\"" + this.bundlePath.append( "endorsed" ).toPortableString() + "\"" );
         args.add( "-Djava.io.tmpdir=" + "\"" + this.bundlePath.append( "temp" ).toPortableString() + "\"" );
-//        args.add( "-Djava.net.preferIPv4Stack=true" );
+        args.add( "-Djava.net.preferIPv4Stack=true" );
         args.add( "-Djava.util.logging.config.file=" + "\"" + this.bundlePath.append( "conf/logging.properties" ) +
             "\"" );
         args.add( "-Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager" );
@@ -239,4 +253,5 @@ public class PortalTomcatBundle extends AbstractPortalBundle implements PortalBu
 
         return libs.toArray( new IPath[libs.size()] );
     }
+
 }

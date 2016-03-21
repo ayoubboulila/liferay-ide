@@ -32,6 +32,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.wst.server.core.IModule;
 import org.eclipse.wst.server.core.IServer;
+import org.osgi.framework.dto.BundleDTO;
 
 /**
  * @author Gregory Amerson
@@ -39,9 +40,9 @@ import org.eclipse.wst.server.core.IServer;
 public class BundlePublishFullRemove extends BundlePublishOperation
 {
 
-    public BundlePublishFullRemove( IServer server, IModule[] modules )
+    public BundlePublishFullRemove( IServer server, IModule[] modules, BundleSupervisor supervisor, BundleDTO[] existingBundles )
     {
-        super( server, modules );
+        super( server, modules, supervisor, existingBundles );
     }
 
     @Override
@@ -64,6 +65,8 @@ public class BundlePublishFullRemove extends BundlePublishOperation
 
                 if( this.server.getServerState() == IServer.STATE_STARTED )
                 {
+                    monitor.subTask( "Remotely undeploying " + module.getName() + " from Liferay module framework..." );
+
                     status = remoteUninstall( bundleProject, symbolicName );
                 }
 
@@ -100,7 +103,7 @@ public class BundlePublishFullRemove extends BundlePublishOperation
 
             for( File f : files )
             {
-                if( f.getName().contains( pattern ) )
+                if( f.getName().contains( pattern ) && !retval.contains( f ) )
                 {
                     retval.add( f );
                 }
@@ -118,7 +121,6 @@ public class BundlePublishFullRemove extends BundlePublishOperation
 
         final PortalRuntime runtime = (PortalRuntime) server.getRuntime().loadAdapter( PortalRuntime.class, null );
 
-
         final List<File> moduleFiles = new ArrayList<File>();
 
         // TODO this may not always match
@@ -133,7 +135,7 @@ public class BundlePublishFullRemove extends BundlePublishOperation
 
         try
         {
-            IPath outputFile = bundleProject.getOutputJar( false, null );
+            IPath outputFile = bundleProject.getOutputBundle( false, null );
 
             findFilesInPath( modulesPath.toFile(), outputFile.lastSegment(), moduleFiles );
             findFilesInPath( deployPath.toFile(), outputFile.lastSegment(), moduleFiles );
@@ -184,23 +186,38 @@ public class BundlePublishFullRemove extends BundlePublishOperation
     {
         IStatus retval = null;
 
-        final BundleDeployer deployer = getBundleDeployer();
-
-        if( deployer != null )
+        if( symbolicName != null && _existingBundles != null && _supervisor != null )
         {
             try
             {
-                deployer.uninstall( symbolicName );
-                retval = Status.OK_STATUS;
+                for( BundleDTO bundle : _existingBundles )
+                {
+                    if( symbolicName.equals( bundle.symbolicName ) )
+                    {
+                        String error = _supervisor.getAgent().uninstall( bundle.id );
+
+                        if( error == null )
+                        {
+                            retval = Status.OK_STATUS;
+                        }
+                        else
+                        {
+                            retval = LiferayServerCore.error( "Unable to uninstall bundle " + error );
+                        }
+
+                        break;
+                    }
+                }
             }
             catch( Exception e )
             {
-                retval = LiferayServerCore.error( "Unable to uninstall bundle" + symbolicName, e );
+                retval = LiferayServerCore.error( "Unable to uninstall bundle " + symbolicName, e );
             }
         }
-        else
+
+        if( retval == null )
         {
-            retval = LiferayServerCore.error( "Unable to uninstall bundle" + symbolicName );
+            retval = Status.OK_STATUS;
         }
 
         return retval;

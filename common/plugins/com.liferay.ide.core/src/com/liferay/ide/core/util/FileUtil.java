@@ -56,6 +56,7 @@ import org.xml.sax.ErrorHandler;
 /**
  * @author Greg Amerson
  * @author Cindy Li
+ * @author Simon Jiang
  */
 public class FileUtil
 {
@@ -103,9 +104,9 @@ public class FileUtil
         }
     }
 
-    public static void copyFileToDir( File file, File dir )
+    public static void copyFile( File src, File dest )
     {
-        if( file == null || ( !file.exists() ) || dir == null || ( !dir.exists() ) || ( !dir.isDirectory() ) )
+        if( src == null || ( !src.exists() ) || dest == null || dest.isDirectory() )
         {
             return;
         }
@@ -117,8 +118,8 @@ public class FileUtil
 
         try
         {
-            out = new FileOutputStream( new File( dir, file.getName() ) );
-            in = new FileInputStream( file );
+            out = new FileOutputStream( dest );
+            in = new FileInputStream( src );
 
             int avail = in.read( buf );
             while( avail > 0 )
@@ -129,7 +130,7 @@ public class FileUtil
         }
         catch( Exception e )
         {
-            LiferayCore.logError( "Unable to copy file " + file.getName() + " to " + dir.getAbsolutePath() ); //$NON-NLS-1$ //$NON-NLS-2$
+            LiferayCore.logError( "Unable to copy file " + src.getName() + " to " + dest.getAbsolutePath() ); //$NON-NLS-1$ //$NON-NLS-2$
         }
         finally
         {
@@ -152,6 +153,16 @@ public class FileUtil
                 // ignore
             }
         }
+    }
+
+    public static void copyFileToDir( File src, File dir )
+    {
+        copyFileToDir( src, src.getName(), dir );
+    }
+
+    public static void copyFileToDir( File src, String newName, File dir )
+    {
+        copyFile( src, new File( dir, newName ) );
     }
 
     public static void deleteDir( File directory, boolean removeAll )

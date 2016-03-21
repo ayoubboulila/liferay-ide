@@ -112,13 +112,9 @@ public abstract class AbstractPortalBundleFactory implements PortalBundleFactory
             return false;
         }
 
-        if( path.append( "data" ).toFile().exists() && path.append( "osgi" ).toFile().exists() )
-        {
-            return true;
-        }
-
-        if( path.append( "portal-ext.properties" ).toFile().exists() ||
-            path.append( "portal-setup-wizard.properties" ).toFile().exists() )
+        if( path.append( "osgi/core" ).toFile().exists() &&
+            path.append( "osgi/modules" ).toFile().exists() &&
+            path.append( "osgi/portal" ).toFile().exists() )
         {
             return true;
         }

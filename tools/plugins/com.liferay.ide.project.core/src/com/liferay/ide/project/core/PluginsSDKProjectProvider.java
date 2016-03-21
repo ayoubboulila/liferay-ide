@@ -14,6 +14,7 @@
  *******************************************************************************/
 package com.liferay.ide.project.core;
 
+import com.liferay.ide.core.AbstractLiferayProjectProvider;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.project.core.model.NewLiferayPluginProjectOp;
@@ -63,7 +64,7 @@ import org.osgi.framework.Version;
  * @author Simon Jiang
  * @author Terry Jia
  */
-public class PluginsSDKProjectProvider extends NewLiferayProjectProvider
+public class PluginsSDKProjectProvider extends AbstractLiferayProjectProvider implements NewLiferayProjectProvider<NewLiferayPluginProjectOp>
 {
 
     public PluginsSDKProjectProvider()
@@ -71,232 +72,12 @@ public class PluginsSDKProjectProvider extends NewLiferayProjectProvider
         super( new Class<?>[] { IProject.class, IRuntime.class } );
     }
 
-    @Override
-    public IStatus doCreateNewProject(
-        NewLiferayPluginProjectOp op, IProgressMonitor monitor, ElementList<ProjectName> projectNames )
-        throws CoreException
-    {
-        final PluginType pluginType = op.getPluginType().content( true );
-        final String originalProjectName = op.getProjectName().content();
-        final String pluginTypeSuffix = NewLiferayPluginProjectOpMethods.getPluginTypeSuffix( pluginType );
-
-        String fixedProjectName = originalProjectName;
-
-        if( originalProjectName.endsWith( pluginTypeSuffix ) )
-        {
-            fixedProjectName = originalProjectName.substring( 0, originalProjectName.length() - pluginTypeSuffix.length() );
-        }
-
-        final String projectName = fixedProjectName;
-
-        final String displayName = op.getDisplayName().content( true );
-        final boolean separateJRE = true;
-
-        SDK sdk = SDKUtil.getWorkspaceSDK();
-
-        if ( sdk == null )
-        {
-            sdk = SDKUtil.createSDKFromLocation( PathBridge.create( op.getSdkLocation().content() ) );
-
-            if ( sdk == null )
-            {
-                throw new CoreException( ProjectCore.createErrorStatus( "Can't get correct sdk." ) );
-            }
-        }
-
-        IStatus sdkStatus = sdk.validate();
-
-        if ( !sdkStatus.isOK() )
-        {
-            throw new CoreException( sdkStatus );
-        }
-
-        // workingDir should always be the directory of the type of plugin /sdk/portlets/ for a portlet, etc
-        String workingDir = null;
-
-        ArrayList<String> arguments = new ArrayList<String>();
-        arguments.add( projectName );
-        arguments.add( displayName );
-
-        final boolean hasGradleTools = SDKUtil.hasGradleTools( sdk.getLocation() );
-
-        IPath newSDKProjectPath = null;
-
-        switch( pluginType )
-        {
-            case servicebuilder:
-                op.setPortletFramework( "mvc" );
-            case portlet:
-                final String frameworkName = getFrameworkName( op );
-
-                workingDir = sdk.getLocation().append( ISDKConstants.PORTLET_PLUGIN_PROJECT_FOLDER ).toOSString();
-
-                if( hasGradleTools )
-                {
-                    arguments.add( frameworkName );
-
-                    sdk.createNewProject( projectName, arguments, "portlet", workingDir, monitor );
-                }
-                else
-                {
-                    newSDKProjectPath =
-                        sdk.createNewPortletProject(
-                            projectName, displayName, frameworkName, separateJRE, workingDir,
-                            null, monitor );
-                }
-
-                break;
-
-            case hook:
-                workingDir = sdk.getLocation().append( ISDKConstants.HOOK_PLUGIN_PROJECT_FOLDER ).toOSString();
-
-                if( hasGradleTools )
-                {
-                    sdk.createNewProject( projectName, arguments, "hook", workingDir, monitor );
-                }
-                else
-                {
-                    newSDKProjectPath =
-                        sdk.createNewHookProject(
-                            projectName, displayName, separateJRE, workingDir, null, monitor );
-                }
-
-                break;
-
-            case ext:
-                workingDir = sdk.getLocation().append( ISDKConstants.EXT_PLUGIN_PROJECT_FOLDER ).toOSString();
-
-                if( hasGradleTools )
-                {
-                    sdk.createNewProject( projectName, arguments, "ext", workingDir, monitor );
-                }
-                else
-                {
-                    newSDKProjectPath =
-                        sdk.createNewExtProject(
-                            projectName, displayName, separateJRE, workingDir, null, monitor );
-                }
-
-                break;
-
-            case layouttpl:
-                workingDir = sdk.getLocation().append( ISDKConstants.LAYOUTTPL_PLUGIN_PROJECT_FOLDER ).toOSString();
-
-                if( hasGradleTools )
-                {
-                    sdk.createNewProject( projectName, arguments, "layouttpl", workingDir, monitor );
-                }
-                else
-                {
-                    newSDKProjectPath =
-                        sdk.createNewLayoutTplProject(
-                            projectName, displayName, separateJRE, workingDir, null, monitor );
-                }
-
-                break;
-
-            case theme:
-                workingDir = sdk.getLocation().append( ISDKConstants.THEME_PLUGIN_PROJECT_FOLDER ).toOSString();
-
-                if( hasGradleTools )
-                {
-                    sdk.createNewProject( projectName, arguments, "theme", workingDir, monitor );
-                }
-                else
-                {
-                    newSDKProjectPath =
-                        sdk.createNewThemeProject( projectName, displayName, separateJRE, workingDir, null, monitor );
-                }
-
-                break;
-
-            case web:
-                workingDir = sdk.getLocation().append( ISDKConstants.WEB_PLUGIN_PROJECT_FOLDER ).toOSString();
-
-                if( hasGradleTools )
-                {
-                    sdk.createNewProject( projectName, arguments, "web", workingDir, monitor );
-                }
-                else
-                {
-                    newSDKProjectPath =
-                        sdk.createNewWebProject(
-                            projectName, displayName, separateJRE, workingDir, null, monitor );
-                }
-
-                break;
-        }
-
-        final Path projectLocation = op.getLocation().content();
-
-        if( !hasGradleTools )
-        {
-            final File projectDir = projectLocation.toFile();
-
-            final File projectParent = projectDir.getParentFile();
-
-            projectParent.mkdirs();
-
-            final File newSDKProjectDir = newSDKProjectPath.toFile();
-
-            try
-            {
-                FileUtils.copyDirectory( newSDKProjectDir, projectParent );
-
-                FileUtils.deleteDirectory( newSDKProjectDir );
-            }
-            catch( IOException e )
-            {
-                throw new CoreException( ProjectCore.createErrorStatus( e ) );
-            }
-        }
-
-        final ProjectRecord projectRecord = ProjectUtil.getProjectRecordForDir( projectLocation.toOSString() );
-
-        final IProject newProject =
-            ProjectImportUtil.importProject( projectRecord.getProjectLocation(), monitor, op );
-
-        newProject.open( monitor );
-
-        // need to update project name incase the suffix was not correct
-        op.setFinalProjectName( newProject.getName() );
-
-        projectNames.insert().setName( op.getFinalProjectName().content() );
-
-        projectCreated( newProject );
-
-        switch( op.getPluginType().content() )
-        {
-            case portlet:
-
-                portletProjectCreated( op, newProject, monitor );
-
-                break;
-
-            case servicebuilder:
-
-                PortalBundle bundle = ServerUtil.getPortalBundle( newProject );
-                serviceBuilderProjectCreated( op, bundle.getVersion(), newProject, monitor );
-
-                break;
-            case theme:
-
-                themeProjectCreated( newProject );
-
-                break;
-            default:
-                break;
-        }
-
-        return Status.OK_STATUS;
-    }
-
     private void portletProjectCreated( NewLiferayPluginProjectOp op, IProject newProject, IProgressMonitor monitor )
         throws CoreException
     {
         final IPortletFramework portletFramework = op.getPortletFramework().content();
         final String portletName = op.getPortletName().content( false );
-        final String frameworkName = getFrameworkName( op );
+        final String frameworkName = NewLiferayPluginProjectOpMethods.getFrameworkName( op );
 
         final IStatus status = portletFramework.postProjectCreated( newProject, frameworkName, portletName, monitor );
 
@@ -447,5 +228,255 @@ public class PluginsSDKProjectProvider extends NewLiferayProjectProvider
         }
 
         return retval;
+    }
+
+    private static SDK getSDK( NewLiferayPluginProjectOp op ) throws CoreException
+    {
+        boolean validateSDK = false;
+
+        SDK sdk = SDKUtil.getWorkspaceSDK();
+
+        if( sdk != null )
+        {
+            IStatus sdkStatus = sdk.validate();
+
+            if( sdkStatus.isOK() )
+            {
+                validateSDK = true;
+            }
+        }
+
+        if( validateSDK == false )
+        {
+            Path sdkLocation = op.getSdkLocation().content( true );
+
+            if( sdkLocation != null )
+            {
+                sdk = SDKUtil.createSDKFromLocation( PathBridge.create( sdkLocation ) );
+
+                if( sdk != null )
+                {
+                    IStatus sdkStatus = sdk.validate();
+
+                    if( sdkStatus.isOK() )
+                    {
+                        validateSDK = true;
+                    }
+                }
+            }
+        }
+
+        if( sdk == null || !validateSDK )
+        {
+            throw new CoreException( ProjectCore.createErrorStatus( "Can't get correct sdk." ) );
+        }
+
+        return sdk;
+    }
+
+    @Override
+    public IStatus createNewProject( NewLiferayPluginProjectOp op, IProgressMonitor monitor ) throws CoreException
+    {
+        ElementList<ProjectName> projectNames = op.getProjectNames();
+
+        final PluginType pluginType = op.getPluginType().content( true );
+        final String originalProjectName = op.getProjectName().content();
+        final String pluginTypeSuffix = NewLiferayPluginProjectOpMethods.getPluginTypeSuffix( pluginType );
+
+        String fixedProjectName = originalProjectName;
+
+        if( originalProjectName.endsWith( pluginTypeSuffix ) )
+        {
+            fixedProjectName = originalProjectName.substring( 0, originalProjectName.length() - pluginTypeSuffix.length() );
+        }
+
+        final String projectName = fixedProjectName;
+
+        final String displayName = op.getDisplayName().content( true );
+        final boolean separateJRE = true;
+
+        SDK sdk = getSDK( op );
+
+        // workingDir should always be the directory of the type of plugin /sdk/portlets/ for a portlet, etc
+        String workingDir = null;
+
+        ArrayList<String> arguments = new ArrayList<String>();
+        arguments.add( projectName );
+        arguments.add( displayName );
+
+        final boolean hasGradleTools = SDKUtil.hasGradleTools( sdk.getLocation() );
+
+        IPath newSDKProjectPath = null;
+
+        switch( pluginType )
+        {
+            case servicebuilder:
+                op.setPortletFramework( "mvc" );
+            case portlet:
+                final String frameworkName = NewLiferayPluginProjectOpMethods.getFrameworkName( op );
+
+                workingDir = sdk.getLocation().append( ISDKConstants.PORTLET_PLUGIN_PROJECT_FOLDER ).toOSString();
+
+                if( hasGradleTools )
+                {
+                    arguments.add( frameworkName );
+
+                    sdk.createNewProject( projectName, arguments, "portlet", workingDir, monitor );
+                }
+                else
+                {
+                    newSDKProjectPath =
+                        sdk.createNewPortletProject(
+                            projectName, displayName, frameworkName, separateJRE, workingDir,
+                            null, monitor );
+                }
+
+                break;
+
+            case hook:
+                workingDir = sdk.getLocation().append( ISDKConstants.HOOK_PLUGIN_PROJECT_FOLDER ).toOSString();
+
+                if( hasGradleTools )
+                {
+                    sdk.createNewProject( projectName, arguments, "hook", workingDir, monitor );
+                }
+                else
+                {
+                    newSDKProjectPath =
+                        sdk.createNewHookProject(
+                            projectName, displayName, separateJRE, workingDir, null, monitor );
+                }
+
+                break;
+
+            case ext:
+                workingDir = sdk.getLocation().append( ISDKConstants.EXT_PLUGIN_PROJECT_FOLDER ).toOSString();
+
+                if( hasGradleTools )
+                {
+                    sdk.createNewProject( projectName, arguments, "ext", workingDir, monitor );
+                }
+                else
+                {
+                    newSDKProjectPath =
+                        sdk.createNewExtProject(
+                            projectName, displayName, separateJRE, workingDir, null, monitor );
+                }
+
+                break;
+
+            case layouttpl:
+                workingDir = sdk.getLocation().append( ISDKConstants.LAYOUTTPL_PLUGIN_PROJECT_FOLDER ).toOSString();
+
+                if( hasGradleTools )
+                {
+                    sdk.createNewProject( projectName, arguments, "layouttpl", workingDir, monitor );
+                }
+                else
+                {
+                    newSDKProjectPath =
+                        sdk.createNewLayoutTplProject(
+                            projectName, displayName, separateJRE, workingDir, null, monitor );
+                }
+
+                break;
+
+            case theme:
+                workingDir = sdk.getLocation().append( ISDKConstants.THEME_PLUGIN_PROJECT_FOLDER ).toOSString();
+
+                if( hasGradleTools )
+                {
+                    sdk.createNewProject( projectName, arguments, "theme", workingDir, monitor );
+                }
+                else
+                {
+                    newSDKProjectPath =
+                        sdk.createNewThemeProject( projectName, displayName, separateJRE, workingDir, null, monitor );
+                }
+
+                break;
+
+            case web:
+                workingDir = sdk.getLocation().append( ISDKConstants.WEB_PLUGIN_PROJECT_FOLDER ).toOSString();
+
+                if( hasGradleTools )
+                {
+                    sdk.createNewProject( projectName, arguments, "web", workingDir, monitor );
+                }
+                else
+                {
+                    newSDKProjectPath =
+                        sdk.createNewWebProject(
+                            projectName, displayName, separateJRE, workingDir, null, monitor );
+                }
+
+                break;
+        }
+
+        NewLiferayPluginProjectOpMethods.updateLocation( op );
+
+        final Path projectLocation = op.getLocation().content();
+
+        if( !hasGradleTools )
+        {
+            final File projectDir = projectLocation.toFile();
+
+            final File projectParent = projectDir.getParentFile();
+
+            projectParent.mkdirs();
+
+            final File newSDKProjectDir = newSDKProjectPath.toFile();
+
+            try
+            {
+                FileUtils.copyDirectory( newSDKProjectDir, projectParent );
+
+                FileUtils.deleteDirectory( newSDKProjectDir );
+            }
+            catch( IOException e )
+            {
+                throw new CoreException( ProjectCore.createErrorStatus( e ) );
+            }
+        }
+
+        final ProjectRecord projectRecord = ProjectUtil.getProjectRecordForDir( projectLocation.toOSString() );
+
+        final IProject newProject =
+            ProjectImportUtil.importProject( projectRecord.getProjectLocation(), monitor, op );
+
+        newProject.open( monitor );
+
+        // need to update project name incase the suffix was not correct
+        op.setFinalProjectName( newProject.getName() );
+
+        projectNames.insert().setName( op.getFinalProjectName().content() );
+
+        projectCreated( newProject );
+
+        switch( op.getPluginType().content() )
+        {
+            case portlet:
+
+                portletProjectCreated( op, newProject, monitor );
+
+                break;
+
+            case servicebuilder:
+
+                PortalBundle bundle = ServerUtil.getPortalBundle( newProject );
+                serviceBuilderProjectCreated( op, bundle.getVersion(), newProject, monitor );
+
+                break;
+            case theme:
+
+                themeProjectCreated( newProject );
+
+                break;
+            default:
+                break;
+        }
+
+        return Status.OK_STATUS;
+
     }
 }

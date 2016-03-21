@@ -14,12 +14,17 @@
  *******************************************************************************/
 package com.liferay.ide.maven.core;
 
+import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.NodeUtil;
 import com.liferay.ide.project.core.model.NewLiferayProfile;
 import com.liferay.ide.server.core.ILiferayRuntime;
 import com.liferay.ide.server.util.ServerUtil;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -48,9 +53,15 @@ import org.eclipse.m2e.core.MavenPlugin;
 import org.eclipse.m2e.core.embedder.IMaven;
 import org.eclipse.m2e.core.embedder.IMavenConfiguration;
 import org.eclipse.m2e.core.embedder.IMavenExecutionContext;
+import org.eclipse.m2e.core.embedder.MavenModelManager;
 import org.eclipse.m2e.core.internal.IMavenConstants;
+import org.eclipse.m2e.core.project.AbstractProjectScanner;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.m2e.core.project.IMavenProjectRegistry;
+import org.eclipse.m2e.core.project.IProjectConfigurationManager;
+import org.eclipse.m2e.core.project.LocalProjectScanner;
+import org.eclipse.m2e.core.project.MavenProjectInfo;
+import org.eclipse.m2e.core.project.ProjectImportConfiguration;
 import org.eclipse.m2e.core.project.ResolverConfiguration;
 import org.eclipse.m2e.wtp.ProjectUtils;
 import org.eclipse.m2e.wtp.WarPluginConfiguration;
@@ -224,6 +235,63 @@ public class MavenUtil
         return retval == null ? Status.OK_STATUS : retval;
     }
 
+    private static List<MavenProjectInfo> filterProjects( List<MavenProjectInfo> mavenProjects )
+    {
+        final List<MavenProjectInfo> result = new ArrayList<MavenProjectInfo>();
+
+        for( MavenProjectInfo info : mavenProjects )
+        {
+            if( info != null )
+            {
+                URI mavenuri = info.getPomFile().getParentFile().toURI();
+
+                if( mavenuri.toString().endsWith( "/" ) )
+                {
+                    try
+                    {
+                        mavenuri = new URI( mavenuri.toString().substring( 0, mavenuri.toString().length() - 1 ) );
+                    }
+                    catch( URISyntaxException e )
+                    {
+                    }
+                }
+
+                boolean alreadyExists = false;
+
+                for( IProject project : CoreUtil.getAllProjects() )
+                {
+                    if( project.exists() && project.getLocationURI().equals( mavenuri ) )
+                    {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+
+                if( !alreadyExists )
+                {
+                    result.add( info );
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static void findChildMavenProjects( List<MavenProjectInfo> results, Collection<MavenProjectInfo> infos )
+    {
+        for( MavenProjectInfo info : infos )
+        {
+            results.add( info );
+
+            Collection<MavenProjectInfo> children = info.getProjects();
+
+            if( !children.isEmpty() )
+            {
+                findChildMavenProjects( results, children );
+            }
+        }
+    }
+
     public static MojoExecution getExecution( MavenExecutionPlan plan, String artifactId )
     {
         if( plan != null )
@@ -245,54 +313,6 @@ public class MavenUtil
         IPath m2eLiferayFolder = getM2eLiferayFolder( mavenProject, project );
 
         return project.getFolder( m2eLiferayFolder ).getFolder( ILiferayMavenConstants.THEME_RESOURCES_FOLDER );
-    }
-
-    public static Plugin getPlugin( IMavenProjectFacade facade, final String pluginKey, IProgressMonitor monitor ) throws CoreException
-    {
-        Plugin retval = null;
-        boolean loadedParent = false;
-        final MavenProject mavenProject = facade.getMavenProject( monitor );
-
-        if( mavenProject != null )
-        {
-            retval = mavenProject.getPlugin( pluginKey );
-        }
-
-        if( retval == null )
-        {
-            // look through all parents to find if the plugin has been declared
-
-            MavenProject parent = mavenProject.getParent();
-
-            if( parent == null )
-            {
-                try
-                {
-                    if( loadParentHierarchy( facade, monitor ) )
-                    {
-                        loadedParent = true;
-                    }
-                }
-                catch( CoreException e )
-                {
-                    LiferayMavenCore.logError( "Error loading parent hierarchy", e );
-                }
-            }
-
-            while( parent != null && retval == null )
-            {
-                retval = parent.getPlugin( pluginKey );
-
-                parent = parent.getParent();
-            }
-        }
-
-        if( loadedParent )
-        {
-            mavenProject.setParent( null );
-        }
-
-        return retval;
     }
 
     public static Xpp3Dom getLiferayMavenPluginConfig( MavenProject mavenProject )
@@ -410,6 +430,54 @@ public class MavenUtil
         return retval;
     }
 
+    public static Plugin getPlugin( IMavenProjectFacade facade, final String pluginKey, IProgressMonitor monitor ) throws CoreException
+    {
+        Plugin retval = null;
+        boolean loadedParent = false;
+        final MavenProject mavenProject = facade.getMavenProject( monitor );
+
+        if( mavenProject != null )
+        {
+            retval = mavenProject.getPlugin( pluginKey );
+        }
+
+        if( retval == null )
+        {
+            // look through all parents to find if the plugin has been declared
+
+            MavenProject parent = mavenProject.getParent();
+
+            if( parent == null )
+            {
+                try
+                {
+                    if( loadParentHierarchy( facade, monitor ) )
+                    {
+                        loadedParent = true;
+                    }
+                }
+                catch( CoreException e )
+                {
+                    LiferayMavenCore.logError( "Error loading parent hierarchy", e );
+                }
+            }
+
+            while( parent != null && retval == null )
+            {
+                retval = parent.getPlugin( pluginKey );
+
+                parent = parent.getParent();
+            }
+        }
+
+        if( loadedParent )
+        {
+            mavenProject.setParent( null );
+        }
+
+        return retval;
+    }
+
     public static IMavenProjectFacade getProjectFacade( final IProject project )
     {
         return getProjectFacade( project, new NullProgressMonitor() );
@@ -473,12 +541,35 @@ public class MavenUtil
         return retval;
     }
 
+    public static void importProject( String location, IProgressMonitor monitor )
+        throws CoreException, InterruptedException
+    {
+        MavenModelManager mavenModelManager = MavenPlugin.getMavenModelManager();
+        File root = CoreUtil.getWorkspaceRoot().getLocation().toFile();
+        AbstractProjectScanner<MavenProjectInfo> scanner =
+            new LocalProjectScanner( root, location, false, mavenModelManager );
+
+        scanner.run( monitor );
+
+        List<MavenProjectInfo> projects = scanner.getProjects();
+        List<MavenProjectInfo> mavenProjects = new ArrayList<MavenProjectInfo>();
+
+        findChildMavenProjects( mavenProjects, projects );
+
+        mavenProjects = filterProjects(mavenProjects);
+
+        ProjectImportConfiguration importConfiguration = new ProjectImportConfiguration();
+
+        IProjectConfigurationManager projectConfigurationManager = MavenPlugin.getProjectConfigurationManager();
+
+        projectConfigurationManager.importProjects( mavenProjects, importConfiguration, monitor );
+    }
+
     public static boolean isMavenProject( IProject project ) throws CoreException
     {
         return project != null && project.exists() && project.isAccessible() &&
             ( project.hasNature( IMavenConstants.NATURE_ID ) || project.getFile( IMavenConstants.POM_FILE_NAME ).exists() );
     }
-
 
     public static boolean isPomFile( IFile pomFile )
     {

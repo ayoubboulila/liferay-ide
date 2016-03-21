@@ -15,7 +15,8 @@
 
 package com.liferay.ide.project.ui.migration;
 
-import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.blade.api.Problem;
+import com.liferay.ide.project.core.upgrade.FileProblems;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.action.IMenuManager;
@@ -34,10 +35,12 @@ import org.eclipse.ui.navigator.ICommonViewerWorkbenchSite;
 
 /**
  * @author Gregory Amerson
+ * @author Terry Jia
  */
 public class MigrationActionProvider extends CommonActionProvider
 {
 
+    private ICommonViewerSite viewerSite;
     private SelectionProviderAction _autoCorrectAction;
     private SelectionProviderAction _ignoreAction;
     private SelectionProviderAction _markDoneAction;
@@ -79,20 +82,23 @@ public class MigrationActionProvider extends CommonActionProvider
     {
         final Object selection = getFirstSelectedElement();
 
-        if( selection instanceof TaskProblem )
+        if( selection instanceof Problem )
         {
             menu.add( new Separator() );
             menu.add( _markDoneAction );
             menu.add( _markUndoneAction );
             menu.add( _ignoreAction );
 
-            final TaskProblem problem = (TaskProblem) selection;
+            menu.add( _autoCorrectAction );
 
-            if( !CoreUtil.isNullOrEmpty( problem.autoCorrectContext ) )
-            {
-                menu.add( _autoCorrectAction );
-            }
-
+            menu.add( new Separator() );
+        }
+        else if( selection instanceof FileProblems )
+        {
+            menu.add( new Separator() );
+            menu.add( _markDoneAction );
+            menu.add( _markUndoneAction );
+            menu.add( _ignoreAction );
             menu.add( new Separator() );
         }
     }
@@ -115,7 +121,7 @@ public class MigrationActionProvider extends CommonActionProvider
     {
         super.init( site );
 
-        final ICommonViewerSite viewerSite = site.getViewSite();
+        viewerSite = site.getViewSite();
 
         if( viewerSite instanceof ICommonViewerWorkbenchSite )
         {

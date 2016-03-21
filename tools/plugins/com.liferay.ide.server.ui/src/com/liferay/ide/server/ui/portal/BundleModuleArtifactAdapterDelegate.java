@@ -14,8 +14,7 @@
  *******************************************************************************/
 package com.liferay.ide.server.ui.portal;
 
-import com.liferay.ide.core.IBundleProject;
-import com.liferay.ide.core.LiferayCore;
+import com.liferay.ide.core.util.CoreUtil;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IAdaptable;
@@ -30,16 +29,19 @@ import org.eclipse.wst.server.core.util.WebResource;
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
-@SuppressWarnings( "rawtypes" )
+@SuppressWarnings( { "rawtypes", "unchecked" } )
 public class BundleModuleArtifactAdapterDelegate extends ModuleArtifactAdapterDelegate implements IAdapterFactory
 {
 
+    @Override
     public Object getAdapter( Object adaptableObject, Class adapterType )
     {
         return null;
     }
 
+    @Override
     public Class[] getAdapterList()
     {
         return new Class[] { ILaunchable.class };
@@ -76,18 +78,13 @@ public class BundleModuleArtifactAdapterDelegate extends ModuleArtifactAdapterDe
 
        if( project != null )
        {
-            if( isBundle( project ) )
+            if( CoreUtil.isBundleOnlyProject( project ) )
             {
                 return new WebResource( getModule( project ), project.getProjectRelativePath() );
             }
         }
 
         return null;
-    }
-
-    private boolean isBundle( IProject project )
-    {
-        return LiferayCore.create( IBundleProject.class, project ) != null;
     }
 
 }

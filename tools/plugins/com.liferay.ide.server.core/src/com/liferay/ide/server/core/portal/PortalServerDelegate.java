@@ -15,12 +15,16 @@
 
 package com.liferay.ide.server.core.portal;
 
+import aQute.remote.api.Agent;
+
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.server.core.LiferayServerCore;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -34,10 +38,13 @@ import org.eclipse.wst.server.core.model.ServerDelegate;
 /**
  * @author Gregory Amerson
  * @author Terry Jia
+ * @author Simon Jiang
  */
 @SuppressWarnings( "restriction" )
 public class PortalServerDelegate extends ServerDelegate implements PortalServerWorkingCopy
 {
+    private final static List<String> SUPPORT_TYPES_LIST = Arrays.asList( "liferay.bundle", "jst.web", "jst.utility" );
+    private int nextAgentPort = Agent.DEFAULT_PORT + 1;
 
     public PortalServerDelegate()
     {
@@ -53,7 +60,7 @@ public class PortalServerDelegate extends ServerDelegate implements PortalServer
         {
             for( IModule module : add )
             {
-                if( !"liferay.bundle".equals( module.getModuleType().getId() ) )
+                if( !SUPPORT_TYPES_LIST.contains( module.getModuleType().getId() ) )
                 {
                     retval =
                         LiferayServerCore.error( "Unable to add module with type " + module.getModuleType().getName() );
@@ -67,7 +74,7 @@ public class PortalServerDelegate extends ServerDelegate implements PortalServer
 
     public int getAutoPublishTime()
     {
-        return getAttribute(Server.PROP_AUTO_PUBLISH_TIME, 1);
+        return getAttribute(Server.PROP_AUTO_PUBLISH_TIME, 0);
     }
 
     @Override
@@ -79,7 +86,7 @@ public class PortalServerDelegate extends ServerDelegate implements PortalServer
         {
             final IModuleType moduleType = module[0].getModuleType();
 
-            if( module.length == 1 && moduleType != null && "liferay.bundle".equals( moduleType.getId() ) )
+            if( module.length == 1 && moduleType != null && SUPPORT_TYPES_LIST.contains( moduleType.getId() ) )
             {
                 retval = new IModule[0];
             }
@@ -210,6 +217,13 @@ public class PortalServerDelegate extends ServerDelegate implements PortalServer
     @Override
     public void modifyModules( IModule[] add, IModule[] remove, IProgressMonitor monitor ) throws CoreException
     {
+    }
+
+    @Override
+    public void setDefaults( IProgressMonitor monitor )
+    {
+        setAttribute( Server.PROP_AUTO_PUBLISH_TIME, getAutoPublishTime() );
+        setAttribute( "AGENT_PORT", nextAgentPort++ );
     }
 
     @Override
